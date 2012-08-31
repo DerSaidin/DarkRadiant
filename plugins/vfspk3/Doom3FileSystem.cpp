@@ -131,6 +131,12 @@ void Doom3FileSystem::initialise()
 	std::string extensions = GlobalGameManager().currentGame()->getKeyValue("archivetypes");
 	boost::algorithm::split(_allowedExtensions, extensions, boost::algorithm::is_any_of(" "));
 
+	// Build list of dir extensions, e.g. pk4 -> pk4dir
+	for (std::set<std::string>::iterator i = _allowedExtensions.begin(); i != _allowedExtensions.end(); ++i) {
+		std::string extDir = *i + "dir";
+		_allowedExtensionsDir.insert(extDir);
+	}
+
 	// Get the VFS search paths from the game manager
 	const game::IGameManager::PathList& paths =
 		GlobalGameManager().getVFSSearchPaths();
@@ -286,8 +292,8 @@ void Doom3FileSystem::initPakFile(ArchiveLoader& archiveModule, const std::strin
 	std::string fileExt(os::getExtension(filename));
 	boost::to_lower(fileExt);
 
-	// matching extension?
 	if (_allowedExtensions.find(fileExt) != _allowedExtensions.end()) {
+		// Matched extension for archive (e.g. "pk3", "pk4")
 		ArchiveDescriptor entry;
 
 		entry.name = filename;
@@ -296,6 +302,18 @@ void Doom3FileSystem::initPakFile(ArchiveLoader& archiveModule, const std::strin
 		_archives.push_back(entry);
 
 		rMessage() << "[vfs] pak file: " << filename << std::endl;
+	}
+	else if (_allowedExtensionsDir.find(fileExt) != _allowedExtensionsDir.end()) {
+		// Matched extension for archive dir (e.g. "pk3dir", "pk4dir")
+		ArchiveDescriptor entry;
+
+		std::string path = os::standardPathWithSlash(filename);
+		entry.name = path;
+		entry.archive = DirectoryArchivePtr(new DirectoryArchive(path));
+		entry.is_pakfile = false;
+		_archives.push_back(entry);
+
+		rMessage() << "[vfs] pak dir:  " << path << std::endl;
 	}
 }
 
